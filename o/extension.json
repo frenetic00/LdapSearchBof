@@ -1,0 +1,73 @@
+{
+    "name": "ldap",
+    "version": "v1.0.0",
+    "command_name": "ldap",
+    "extension_author": "@frenetic00",
+    "original_author": "@frenetic00",
+    "repo_url": "",
+    "help": "LDAP search",
+    "depends_on": "coff-loader",
+    "entrypoint": "go",
+    "files": [
+        {
+            "os": "windows",
+            "arch": "amd64",
+            "path": "ldap.x64.o"
+        },
+        {
+            "os": "windows",
+            "arch": "386",
+            "path": "ldap.x86.o"
+        }
+    ],
+    "arguments": [
+        {
+            "name": "filter",
+            "desc": "LDAP filter",
+            "type": "string",
+            "optional": false
+        },
+        {
+            "name": "numResults",
+            "desc": "Number of results",
+            "type": "int",
+            "optional": true
+        },
+        {
+            "name": "attributes",
+            "desc": "LDAP attributes",
+            "type": "string",
+            "optional": true
+        },
+        {
+            "name": "server",
+            "desc": "LDAP server",
+            "type": "string",
+            "optional": true
+        },
+        {
+            "name": "base",
+            "desc": "Base of LDAP search",
+            "type": "string",
+            "optional": true
+        },
+        {
+            "name": "domain",
+            "desc": "Domain for authentication",
+            "type": "string",
+            "optional": true
+        },
+        {
+            "name": "username",
+            "desc": "Username for authenticaiton",
+            "type": "string",
+            "optional": true
+        },
+        {
+            "name": "password",
+            "desc": "Password for authentication",
+            "type": "string",
+            "optional": true
+        }
+    ]
+}

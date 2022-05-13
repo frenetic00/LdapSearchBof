@@ -1,0 +1,5 @@
+o/ldap.x86.o
+o/ldap.x64.o
+exe
+exe/ldap.x86.exe
+exe/ldap.x64.exe
