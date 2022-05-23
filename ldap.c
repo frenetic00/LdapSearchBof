@@ -352,7 +352,7 @@ ULONG ldapParse(LDAP *ldapConnectionPtr, LDAPMessage *ldapMessage)
     return searchEntryCount;
 }
 
-LDAP* ldapConnect(ULONG version, char* pdc, char* domainDN, char* domain, char* username, char* password)
+LDAP* ldapConnect(ULONG version, char* pdc, char* domainDN, char* domain, char* username, char* password, BOOLEAN ssl)
 {
     LDAP* ldapConnectionPtr = NULL;
     
@@ -363,8 +363,14 @@ LDAP* ldapConnect(ULONG version, char* pdc, char* domainDN, char* domain, char* 
     
     // Initialise an LDAP session
     //commonPrintf("Initialise connection\n");
-    ldapConnectionPtr = WLDAP32$ldap_init(pdc, 389);
-    //ldapConnectionPtr = WLDAP32$ldap_sslinit(pdc, 636, 1);
+    if(ssl) {
+      commonPrintf("LDAPS on port 636\n");
+      ldapConnectionPtr = WLDAP32$ldap_sslinit(pdc, 636, 1);
+    }
+    else {
+      commonPrintf("LDAP on port 389\n");
+      ldapConnectionPtr = WLDAP32$ldap_init(pdc, 389);
+    }
 
     if (ldapConnectionPtr == NULL)
     {
@@ -752,7 +758,7 @@ ULONG ldapSupportedControls(LDAP* ldapConnectionPtr)
     return sd_flag + paging;
 }
 
-void ldapQuery(CHAR* pFilter, ULONG numResults, CHAR* attributes, CHAR* dc, CHAR* basename, CHAR* domain, CHAR* username, CHAR* password)
+void ldapQuery(CHAR* pFilter, ULONG numResults, CHAR* attributes, CHAR* dc, CHAR* basename, CHAR* domain, CHAR* username, CHAR* password, BOOLEAN ssl)
 {
     commonPrintf("Filter: %s\n", pFilter);
 
@@ -864,7 +870,7 @@ void ldapQuery(CHAR* pFilter, ULONG numResults, CHAR* attributes, CHAR* dc, CHAR
 
     ULONG totalEntries = 0;
 
-    ldapConnectionPtr = ldapConnect(LDAP_VERSION3, pdc, domainDN, domain, username, password);
+    ldapConnectionPtr = ldapConnect(LDAP_VERSION3, pdc, domainDN, domain, username, password, ssl);
     if(ldapConnectionPtr != NULL)
     {
         ULONG controls = ldapSupportedControls(ldapConnectionPtr);
@@ -899,7 +905,7 @@ void ldapQuery(CHAR* pFilter, ULONG numResults, CHAR* attributes, CHAR* dc, CHAR
             WLDAP32$ldap_unbind(ldapConnectionPtr);
         }
 
-        ldapConnectionPtr = ldapConnect(LDAP_VERSION2, pdc, domainDN, domain, username, password);
+        ldapConnectionPtr = ldapConnect(LDAP_VERSION2, pdc, domainDN, domain, username, password, ssl);
 
         if (ldapConnectionPtr != NULL)
         {
@@ -947,6 +953,7 @@ void go(char *args, int alen)
     CHAR* domain;
     CHAR* username;
     CHAR* password;
+    BOOLEAN ssl;
 
     BeaconDataParse(&parser, args, alen);
     filter = BeaconDataExtract(&parser, NULL);
@@ -957,6 +964,7 @@ void go(char *args, int alen)
     domain = BeaconDataExtract(&parser, NULL);
     username = BeaconDataExtract(&parser, NULL);
     password = BeaconDataExtract(&parser, NULL);
+    ssl = BeaconDataInt(&parser);
 
     // Set values to null if strings are empty
     attributes = *attributes == 0 ? NULL : attributes;
@@ -967,7 +975,7 @@ void go(char *args, int alen)
     password = *password == 0 ? NULL : password;
 
     // Execute LDAP query
-    ldapQuery(filter, numResults, attributes, dc, basename, domain, username, password);
+    ldapQuery(filter, numResults, attributes, dc, basename, domain, username, password, ssl);
 
     // Print output page
     print_page(TRUE);
@@ -990,7 +998,7 @@ int main(int argc, char *argv[])
     // char *attr = "samAccountName,objectClass";
     // ldapQuery("(objectClass=user)", 2, "samAccountName,objectClass")
 
-    ldapQuery("(samAccountName=test)", 5, attributes, NULL, NULL, domain, username, password);
+    ldapQuery("(samAccountName=test)", 5, attributes, NULL, NULL, domain, username, password, 0);
     return 1;
 }
 
