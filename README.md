@@ -13,6 +13,7 @@ Some of my comments may not be 100% accurate but I hope they prove useful to any
 
 ## Additional Features
 - CNA script for lazy search queries (see help) (some not opsec)
+- LDAP or LDAPS
 - LDAP epoch decode
 - Zulu time decode
 - UAC decode
