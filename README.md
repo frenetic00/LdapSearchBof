@@ -27,3 +27,4 @@ Some of my comments may not be 100% accurate but I hope they prove useful to any
 ## Credits
 Thanks to Trustedsec's CS-Situational-Awareness-BOF for insipring this project.
 Various code snippets across the internet have helped me write this code which I've referenced in the source.
+Thanks to [LarryCheech](https://github.com/LarryCheech) and [magrath3an](https://github.com/magrath3an) for testing the code and encouraging the scope creep.
