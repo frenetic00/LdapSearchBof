@@ -530,8 +530,11 @@ ULONG ldapExtSearch(LDAP* ldapConnectionPtr, CHAR* domainDN, CHAR* pFilter, PCHA
     {
         // Prepare page control from last result
         lRtn = WLDAP32$ldap_parse_page_control(ldapConnectionPtr, retCtrl, NULL, &pCookie);
-        cookie = (PCHAR)(pCookie->bv_val);
-        //commonPrintf("LDAP Cookie: %i\n", cookie);
+        if(lRtn != LDAP_CONTROL_NOT_FOUND)
+        {
+            cookie = (PCHAR)(pCookie->bv_val);
+            //commonPrintf("LDAP Cookie: %i\n", cookie);
+        }
         
         while((cookie != NULL || cookie != 0) && ldapMessage)
         {
