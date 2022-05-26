@@ -352,7 +352,7 @@ ULONG ldapParse(LDAP *ldapConnectionPtr, LDAPMessage *ldapMessage)
     return searchEntryCount;
 }
 
-LDAP* ldapConnect(ULONG version, char* pdc, char* domainDN, char* domain, char* username, char* password, BOOLEAN ssl)
+LDAP* ldapConnect(ULONG version, char* pdc, char* domainDN, char* domain, char* username, char* password, ULONG ssl)
 {
     LDAP* ldapConnectionPtr = NULL;
     
@@ -761,7 +761,7 @@ ULONG ldapSupportedControls(LDAP* ldapConnectionPtr)
     return sd_flag + paging;
 }
 
-void ldapQuery(CHAR* pFilter, ULONG numResults, CHAR* attributes, CHAR* dc, CHAR* basename, CHAR* domain, CHAR* username, CHAR* password, BOOLEAN ssl)
+void ldapQuery(CHAR* pFilter, ULONG numResults, CHAR* attributes, CHAR* dc, CHAR* basename, CHAR* domain, CHAR* username, CHAR* password, ULONG ssl)
 {
     commonPrintf("Filter: %s\n", pFilter);
 
@@ -812,63 +812,79 @@ void ldapQuery(CHAR* pFilter, ULONG numResults, CHAR* attributes, CHAR* dc, CHAR
     // LDAP session handle
     LDAP *ldapConnectionPtr = NULL;
 
-    // Retrieve the FQDN associated with the calling thread
-    // https://docs.microsoft.com/en-us/windows/win32/api/secext/nf-secext-getusernameexa
-    userIdLength = sizeof(userId);
-    BOOLEAN result = SECUR32$GetUserNameExA(NameFullyQualifiedDN, userId, &userIdLength);
+    if(basename == NULL) {
+        // Retrieve the FQDN associated with the calling thread
+        // https://docs.microsoft.com/en-us/windows/win32/api/secext/nf-secext-getusernameexa
+        userIdLength = sizeof(userId);
+        BOOLEAN result = SECUR32$GetUserNameExA(NameFullyQualifiedDN, userId, &userIdLength);
 
-    // Get Domain distinguished name if previous call was successfull
-    if (result != 0)
-    {
-        commonPrintf("User: %s\n", userId);
-
-        domainDN = (basename) ? basename : MSVCRT$strstr(userId, "DC");
-
-        if (domainDN != NULL)
+        // Get Domain distinguished name if previous call was successfull
+        if (result != 0)
         {
-            commonPrintf("Base: %s\n", domainDN);
+            commonPrintf("User: %s\n", userId);
+
+            domainDN = (basename) ? basename : MSVCRT$strstr(userId, "DC");
+
+            if (domainDN != NULL)
+            {
+                commonPrintf("Base: %s\n", domainDN);
+            }
+            else
+            {
+                commonPrintf("MSVCRT strstr: Failed to fetch Domain DN\n");
+            }
         }
         else
         {
-            commonPrintf("MSVCRT strstr: Failed to fetch Domain DN\n");
+            commonPrintf("SECUR32 GetUserNameExA: Error fetching user FQDN\n");
+
+            // https://docs.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-getlasterror
+            DWORD error = KERNEL32$GetLastError();
+
+            // https://docs.microsoft.com/en-gb/windows/win32/debug/system-error-codes--0-499-
+            switch (error)
+            {
+            case ERROR_MORE_DATA:
+                commonPrintf("Username buffer is too small, adjust and re-compile\n");
+                break;
+            case ERROR_NO_SUCH_DOMAIN:
+                commonPrintf("DC not available\n");
+                break;
+            case ERROR_NONE_MAPPED:
+                commonPrintf("DN format not available\nIf your not domain joined, supply a basename\n");
+            }
+
+            goto end;
         }
     }
     else
     {
-        commonPrintf("SECUR32 GetUserNameExA: Error fetching user FQDN\n");
+        domainDN = basename;
+        commonPrintf("Base: %s\n", domainDN);
+    }
 
-        // https://docs.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-getlasterror
-        DWORD error = KERNEL32$GetLastError();
+    if(dc == NULL)
+    {
+        // Get Primary Domain Controller (PDC)
+        // https://docs.microsoft.com/en-us/windows/win32/api/dsgetdc/nf-dsgetdc-dsgetdcnamea
+        DWORD getPDC = NETAPI32$DsGetDcNameA(NULL, NULL, NULL, NULL, 0, &pdcInfo);
 
-        // https://docs.microsoft.com/en-gb/windows/win32/debug/system-error-codes--0-499-
-        switch (error)
+        // + 2 removes the \\ from the front of the name
+        if (ERROR_SUCCESS == getPDC)
         {
-        case ERROR_MORE_DATA:
-            commonPrintf("Username buffer is too small, adjust and re-compile\n");
-            break;
-        case ERROR_NO_SUCH_DOMAIN:
-            commonPrintf("DC not available\n");
-            break;
-        case ERROR_NONE_MAPPED:
-            commonPrintf("DN format not available\n");
+            pdc = (dc) ? dc : pdcInfo->DomainControllerName + 2;
+            commonPrintf("Server: %s\n", pdc);
         }
-
-        goto end;
-    }
-
-    // Get Primary Domain Controller (PDC)
-    // https://docs.microsoft.com/en-us/windows/win32/api/dsgetdc/nf-dsgetdc-dsgetdcnamea
-    DWORD getPDC = NETAPI32$DsGetDcNameA(NULL, NULL, NULL, NULL, 0, &pdcInfo);
-
-    // + 2 removes the \\ from the front of the name
-    if (ERROR_SUCCESS == getPDC)
-    {
-        pdc = (dc) ? dc : pdcInfo->DomainControllerName + 2;
-        commonPrintf("Server: %s\n", pdc);
+        else
+        {
+            commonPrintf("Failed to fetch PDC\nIf your not domain joined, supply a dc\n");
+            goto end;
+        }
     }
     else
     {
-        goto end;
+        pdc = dc;
+        commonPrintf("Server: %s\n", pdc);
     }
 
     ULONG totalEntries = 0;
@@ -956,7 +972,7 @@ void go(char *args, int alen)
     CHAR* domain;
     CHAR* username;
     CHAR* password;
-    BOOLEAN ssl;
+    ULONG ssl;
 
     BeaconDataParse(&parser, args, alen);
     filter = BeaconDataExtract(&parser, NULL);
@@ -988,12 +1004,45 @@ void go(char *args, int alen)
 
 int main(int argc, char *argv[])
 {
-    char attributes[] = "samAccountName,ntSecurityDescriptor";
-    char dc[] = "";
-    char basename[] = "";
-    char domain[] = "test";
-    char username[] = "test";
-    char password[] = "pass";
+    CHAR* filter = NULL;
+    ULONG numResults = 0;
+    CHAR* attributes = NULL;;
+    CHAR* dc = NULL;;
+    CHAR* basename = NULL;
+    CHAR* domain = NULL;
+    CHAR* username = NULL;
+    CHAR* password = NULL;
+    ULONG ssl = 0;
+
+    //ULONG count;
+    //for(count=0; count<argc; count++)
+    //{
+    //  commonPrintf("argv[%d] %s\n", count, argv[count]);
+    //}
+
+    switch (argc)
+    {
+        case 9:
+          password = argv[8];
+        case 8:
+          username = argv[7];
+        case 7:
+          domain = argv[6];
+        case 6:
+          basename = argv[5];
+        case 5:
+          dc = argv[4];
+        case 4:
+          attributes = argv[3];
+        case 3:
+          numResults = strtol(argv[2], NULL, 10);
+        case 2:
+          filter = argv[1];
+          break;
+        case 1:
+          commonPrintf("ldap <filter> [limit] [attributes] [server] [base] [domain] [username] [password]");
+          return 1;
+    }
 
     // The next two examples won't work when we use strtok against the attributes
     // This is because strtok modifies the attributes variable
@@ -1001,8 +1050,8 @@ int main(int argc, char *argv[])
     // char *attr = "samAccountName,objectClass";
     // ldapQuery("(objectClass=user)", 2, "samAccountName,objectClass")
 
-    ldapQuery("(samAccountName=test)", 5, attributes, NULL, NULL, domain, username, password, 0);
-    return 1;
+    ldapQuery(filter, numResults, attributes, dc, basename, domain, username, password, ssl);
+    return 0;
 }
 
 #endif
