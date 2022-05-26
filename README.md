@@ -24,7 +24,7 @@ Some of my comments may not be 100% accurate but I hope they prove useful to any
 - LDAP v3 whoami Check
 - Extended LDAP search pre-programmed with LDAP_OID_SD_FLAGS control set appropriately so any user can request ntSecurityDescriptor (owner, group, and DACL, SACL isn't returned as this requires DA level privileges)
 - Sliver support
-- Compiles to exe and can be used on non-domain joined machines
+- Compiles to exe which can also be used on non-domain joined machines
 
 ## Credits
 Thanks to Trustedsec's CS-Situational-Awareness-BOF for insipring this project.\
