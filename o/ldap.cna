@@ -3,7 +3,7 @@ beacon_command_register(
     "LDAP search",
     "
 
-All command accept these options arguments in this order
+All commands accept these optional arguments in this order
 
 [limit]      = int Number of results you want to return
 [attributes] = str Which LDAP attributes you wish to see
@@ -53,47 +53,47 @@ ms-mcs-AdmPwd
 "
 );
 
-alias ldap {
-    # Prepare local variables
-    local('$barch $handle $data $args $search $numResults $attributes $server $base $doamin $username $password')
+sub call {
+  # Prepare local variables
+  local('$barch $handle $data $args $search $numResults $attributes $server $base $doamin $username $password $ssl')
 
     # Catch if there's not enough arguments
-	if(size(@_) < 2)
+	if(size($1) < 2)
 	{
-		berror($1, beacon_command_detail("ldap"));
+		berror($1[0], beacon_command_detail("ldap"));
 		return;
 	}
 
     # Fetch beacon architecture
-    $barch  = barch($1);
+    $barch  = barch($1[0]);
 
     # Read in bof for specific architecture
     $handle = openf(script_resource("./ldap. $+ $barch $+ .o"));
     $data = readb($handle, -1);
     closef($handle);
 
-    if($2 eq "user")
+    if($1[1] eq "user")
     {
-        if(-istrue $3)
+        if(-istrue $1[2])
         {
-            $search = "(samaccountname= $+ $3 $+ )";
+            $search = "(samaccountname= $+ $1[2] $+ )";
         }
         else
         {
-            berror($1, "Usage: ldap user <username>");
+            berror($1[0], "Usage: ldap user <username>");
             return;
         }
 
-        $numResults = iff(-istrue $4, $4, 0);
+        $numResults = iff(-istrue $1[3], $1[3], 0);
         #$numResults = 1;
-        $attributes = iff(-istrue $5, $5, "");
-        $server = iff(-istrue $6, $6, "");
-        $base = iff(-istrue $7, $7, "");
-        $domain = iff(-istrue $8, $8, "");
-        $username = iff(-istrue $9, $9, "");
-        $password = iff(-istrue $10, $10, "");
+        $attributes = iff(-istrue $1[4], $1[4], "");
+        $server = iff(-istrue $1[5], $1[5], "");
+        $base = iff(-istrue $1[6], $1[6], "");
+        $domain = iff(-istrue $1[7], $1[7], "");
+        $username = iff(-istrue $1[8], $1[8], "");
+        $password = iff(-istrue $1[9], $1[9], "");
     }
-    else if($2 eq "roast")
+    else if($1[1] eq "roast")
     {
         if((-istrue $3) && ($3 eq "kerb"))
         {
@@ -109,19 +109,19 @@ alias ldap {
             return;
         }
 
-        $numResults = iff(-istrue $4, $4, 0);
-        $attributes = iff(-istrue $5, $5, "");
-        $server = iff(-istrue $6, $6, "");
-        $base = iff(-istrue $7, $7, "");
-        $domain = iff(-istrue $8, $8, "");
-        $username = iff(-istrue $9, $9, "");
-        $password = iff(-istrue $10, $10, "");
+        $numResults = iff(-istrue $1[3], $1[3], 0);
+        $attributes = iff(-istrue $1[4], $1[4], "");
+        $server = iff(-istrue $1[5], $1[5], "");
+        $base = iff(-istrue $1[6], $1[6], "");
+        $domain = iff(-istrue $1[7], $1[7], "");
+        $username = iff(-istrue $1[8], $1[8], "");
+        $password = iff(-istrue $1[9], $1[9], "");
     }
-    else if($2 eq "desc")
+    else if($1[1] eq "desc")
     {
-        if((-istrue $3) && (-istrue $4))
+        if((-istrue $3) && (-istrue $1[3]))
         {
-            $search = "(&(objectClass= $+ $3 $+ )(description=* $+ $4 $+ *))";
+            $search = "(&(objectClass= $+ $3 $+ )(description=* $+ $1[3] $+ *))";
         }
         else
         {
@@ -129,48 +129,48 @@ alias ldap {
             return;
         }
 
-        $numResults = iff(-istrue $5, $5, 0);
-        $attributes = iff(-istrue $6, $6, "");
-        $server = iff(-istrue $7, $7, "");
-        $base = iff(-istrue $8, $8, "");
-        $domain = iff(-istrue $9, $9, "");
-        $username = iff(-istrue $10, $10, "");
-        $password = iff(-istrue $11, $11, "");
+        $numResults = iff(-istrue $1[4], $1[4], 0);
+        $attributes = iff(-istrue $1[5], $1[5], "");
+        $server = iff(-istrue $1[6], $1[6], "");
+        $base = iff(-istrue $1[7], $1[7], "");
+        $domain = iff(-istrue $1[8], $1[8], "");
+        $username = iff(-istrue $1[9], $1[9], "");
+        $password = iff(-istrue $1[10], $1[10], "");
     }
-    else if($2 eq "nopass")
+    else if($1[1] eq "nopass")
     {
         $search = "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))";
         $numResults = iff(-istrue $3, $3, 0);
-        $attributes = iff(-istrue $4, $4, "");
-        $server = iff(-istrue $5, $5, "");
-        $base = iff(-istrue $6, $6, "");
-        $domain = iff(-istrue $7, $7, "");
-        $username = iff(-istrue $8, $8, "");
-        $password = iff(-istrue $9, $9, "");
+        $attributes = iff(-istrue $1[3], $1[3], "");
+        $server = iff(-istrue $1[4], $1[4], "");
+        $base = iff(-istrue $1[5], $1[5], "");
+        $domain = iff(-istrue $1[6], $1[6], "");
+        $username = iff(-istrue $1[7], $1[7], "");
+        $password = iff(-istrue $1[8], $1[8], "");
     }
-    else if($2 eq "maq")
+    else if($1[1] eq "maq")
     {
         $search = "(&(objectClass=Domain)(objectCategory=Domain))";
         $numResults = iff(-istrue $3, $3, 0);
-        $attributes = iff(-istrue $4, "$4 $+ ,ms-DS-MachineAccountQuota", "ms-DS-MachineAccountQuota");
-        $server = iff(-istrue $5, $5, "");
-        $base = iff(-istrue $6, $6, "");
-        $domain = iff(-istrue $7, $7, "");
-        $username = iff(-istrue $8, $8, "");
-        $password = iff(-istrue $9, $9, "");
+        $attributes = iff(-istrue $1[3], "$1[3] $+ ,ms-DS-MachineAccountQuota", "ms-DS-MachineAccountQuota");
+        $server = iff(-istrue $1[4], $1[4], "");
+        $base = iff(-istrue $1[5], $1[5], "");
+        $domain = iff(-istrue $1[6], $1[6], "");
+        $username = iff(-istrue $1[7], $1[7], "");
+        $password = iff(-istrue $1[8], $1[8], "");
     }
-    else if($2 eq "sites")
+    else if($1[1] eq "sites")
     {
         $search = "(objectClass=site)";
         $numResults = iff(-istrue $3, $3, 0);
-        $attributes = iff(-istrue $4, $4, "");
-        $server = iff(-istrue $5, $5, "");
-        $base = iff(-istrue $6, $6, "");
-        $domain = iff(-istrue $7, $7, "");
-        $username = iff(-istrue $8, $8, "");
-        $password = iff(-istrue $9, $9, "");
+        $attributes = iff(-istrue $1[3], $1[3], "");
+        $server = iff(-istrue $1[4], $1[4], "");
+        $base = iff(-istrue $1[5], $1[5], "");
+        $domain = iff(-istrue $1[6], $1[6], "");
+        $username = iff(-istrue $1[7], $1[7], "");
+        $password = iff(-istrue $1[8], $1[8], "");
     }
-    else if($2 eq "laps")
+    else if($1[1] eq "laps")
     {
         if(-istrue $3)
         {
@@ -182,32 +182,41 @@ alias ldap {
             return;
         }
 
-        $numResults = iff(-istrue $4, $4, 0);
-        $attributes = iff(-istrue $5, "$5 $+ ,ms-mcs-AdmPwd", "ms-mcs-AdmPwd");
-        $server = iff(-istrue $6, $6, "");
-        $base = iff(-istrue $7, $7, "");
-        $domain = iff(-istrue $8, $8, "");
-        $username = iff(-istrue $9, $9, "");
-        $password = iff(-istrue $10, $10, "");
+        $numResults = iff(-istrue $1[3], $1[3], 0);
+        $attributes = iff(-istrue $1[4], "$1[4] $+ ,ms-mcs-AdmPwd", "ms-mcs-AdmPwd");
+        $server = iff(-istrue $1[5], $1[5], "");
+        $base = iff(-istrue $1[6], $1[6], "");
+        $domain = iff(-istrue $1[7], $1[7], "");
+        $username = iff(-istrue $1[8], $1[8], "");
+        $password = iff(-istrue $1[9], $1[9], "");
     }
     else
     {
-        $search = $2;
-        $numResults = iff(-istrue $3, $3, 0);
-        $attributes = iff(-istrue $4, $4, "");
-        $server = iff(-istrue $5, $5, "");
-        $base = iff(-istrue $6, $6, "");
-        $domain = iff(-istrue $7, $7, "");
-        $username = iff(-istrue $8, $8, "");
-        $password = iff(-istrue $9, $9, "");
+        $search = $1[1];
+        $numResults = iff(-istrue $1[2], $1[2], 0);
+        $attributes = iff(-istrue $1[3], $1[3], "");
+        $server = iff(-istrue $1[4], $1[4], "");
+        $base = iff(-istrue $1[5], $1[5], "");
+        $domain = iff(-istrue $1[6], $1[6], "");
+        $username = iff(-istrue $1[7], $1[7], "");
+        $password = iff(-istrue $1[8], $1[8], "");
     }
 
+    $ssl = $2;
     # Prepare arguments
-    $args = bof_pack($1, "zizzzzzz", $search, $numResults, $attributes, $server, $base, $domain, $username, $password);
+    $args = bof_pack($1[0], "zizzzzzzi", $search, $numResults, $attributes, $server, $base, $domain, $username, $password, $ssl);
 
     # Announce intention
-    btask($1, "Running $barch LDAP search");
+    btask($1[0], "Running $barch LDAP search");
 
     # Execute BOF
-    beacon_inline_execute($1, $data, "go", $args);
+    beacon_inline_execute($1[0], $data, "go", $args);
+}
+
+alias ldap {
+  call(@_, 0);
+}
+
+alias ldaps {
+  call(@_, 1);
 }
